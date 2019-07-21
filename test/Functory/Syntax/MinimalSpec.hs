@@ -13,8 +13,8 @@ syntaxSpec = describe "ast samples" $ do
     let ast = Variable "x"
     return ()
   it "f x" . example $ do
-    let ast = Application "f" (Variable "x")
+    let ast = Application (Variable "f") (Variable "x")
     return ()
   it "f (g x)" . example $ do
-    let ast = Application "f" (Application "g" (Variable "x"))
+    let ast = Application (Variable "f") (Application (Variable "g") (Variable "x"))
     return ()
