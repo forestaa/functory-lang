@@ -21,6 +21,13 @@ description:         Please see the README on GitHub at <https://github.com/fore
 
 dependencies:
 - base >= 4.7 && < 5
+- extensible
+- rio
+
+default-extensions:
+- DataKinds
+- NoImplicitPrelude
+- TypeOperators
 
 library:
   source-dirs: src
