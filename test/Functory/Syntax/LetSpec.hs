@@ -1,7 +1,8 @@
-module Functory.SyntaxSpec where
+module Functory.Syntax.LetSpec (spec) where
 
+import Functory.Syntax.Let
+import RIO
 import Test.Hspec
-import Functory.Syntax
 
 
 spec :: Spec
@@ -17,4 +18,7 @@ syntaxSpec = describe "ast samples" $ do
     return ()
   it "let a = f x in a" . example $ do
     let ast = Let "a" (Application (Variable "x") (Variable "x")) (Variable "a")
+    return ()
+  it "let a = let b = c in b in a" . example $ do
+    let ast = Let "a" (Let "b" (Variable "c") (Variable "b")) (Variable "a")
     return ()
