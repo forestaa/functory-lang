@@ -22,11 +22,22 @@ description:         Please see the README on GitHub at <https://github.com/fore
 dependencies:
 - base >= 4.7 && < 5
 - extensible
+- mtl
 - rio
 
 default-extensions:
 - DataKinds
+- DerivingVia
+- KindSignatures
+- FlexibleContexts
+- LambdaCase
 - NoImplicitPrelude
+- OverloadedLabels
+- StandaloneDeriving
+- Strict
+- StrictData
+- TypeApplications
+- TypeFamilyDependencies
 - TypeOperators
 
 library:
