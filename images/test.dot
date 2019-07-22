@@ -1,0 +1,16 @@
+digraph {  
+  label = "test";
+  
+  //node define
+  1 [label = "\"f\""];
+  2 [label = "\"g\""];
+  3 [label = "\"out\""];
+  4 [label = "\"x\""];
+  5 [label = "\"y\""];
+  
+  //edge define
+  1 -> 2 [label = "source @= \"f\" <: target @= \"g\" <: nil"];
+  2 -> 3 [label = "source @= \"g\" <: target @= \"out\" <: nil"];
+  4 -> 1 [label = "source @= \"x\" <: target @= \"f\" <: nil"];
+  5 -> 2 [label = "source @= \"y\" <: target @= \"g\" <: nil"];
+}
