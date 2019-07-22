@@ -4,6 +4,7 @@ import Data.Extensible
 import RIO
 import qualified RIO.Set as Set
 
+--TODO: x vertice  o vertex
 newtype Vertice a = Vertice a deriving (Show, Eq, Ord) via a
 newtype Edge a = Edge (Record '["source" >: Vertice a, "target" >: Vertice a]) deriving (Show, Eq, Ord) via (Record '["source" >: Vertice a, "target" >: Vertice a])
 newtype Graph a = Graph (Record '["vertices" >: Set.Set (Vertice a), "edges" >: Set.Set (Edge a)]) deriving (Show, Eq) via (Record '["vertices" >: Set.Set (Vertice a), "edges" >: Set.Set (Edge a)])
