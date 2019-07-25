@@ -28,11 +28,13 @@ dependencies:
 default-extensions:
 - DataKinds
 - DerivingVia
+- GeneralizedNewtypeDeriving
 - KindSignatures
 - FlexibleContexts
 - LambdaCase
 - NoImplicitPrelude
 - OverloadedLabels
+- OverloadedStrings
 - StandaloneDeriving
 - Strict
 - StrictData
