@@ -7,18 +7,19 @@ import Functory.Graph
 import Functory.Syntax.Minimal
 import RIO
 import qualified RIO.Map as Map
+import SString
 
 
 type GraphWithOutput a =  (Vertex a, Vertex a -> Graph a)
-type VertexMap a = Map.Map String (Vertex a)
+type VertexMap a = Map.Map SString (Vertex a)
 data ConvertError = 
-    UndefinedNode String 
+    UndefinedNode SString 
   deriving Show
 type ConvertEff a = '["vertices" >: State (VertexMap a), EitherDef ConvertError]
 runConvertEff :: VertexMap a -> Eff (ConvertEff a) b -> Either ConvertError b
 runConvertEff vertices = leaveEff . runEitherDef . flip (evalStateEff @"vertices") vertices
 
-lookupVertice :: (Lookup xs "vertices" (State (VertexMap a)), MonadError ConvertError (Eff xs)) => String -> Eff xs (Vertex a)
+lookupVertice :: (Lookup xs "vertices" (State (VertexMap a)), MonadError ConvertError (Eff xs)) => SString -> Eff xs (Vertex a)
 lookupVertice x = getsEff #vertices (Map.lookup x) >>= \case
   Nothing -> throwError $ UndefinedNode x
   Just v -> pure v

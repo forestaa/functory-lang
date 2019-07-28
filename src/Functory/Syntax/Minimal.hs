@@ -1,5 +1,7 @@
 module Functory.Syntax.Minimal where
 
-import RIO (String)
+import RIO (Show, Eq)
+import SString
 
-data Term = Variable String | Application Term Term -- normalized term
+data Term = Variable SString | Application Term Term -- normalized term
+  deriving (Show, Eq)

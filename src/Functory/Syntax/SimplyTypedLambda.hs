@@ -3,6 +3,7 @@ module Functory.Syntax.SimplyTypedLambda where
 import Control.Monad.Except
 import Data.Extensible
 import Data.Extensible.Effect.Default
+import qualified Functory.Syntax.Minimal as Minimal
 import Functory.Syntax.NameLess
 import RIO
 import qualified RIO.Vector as V
@@ -144,3 +145,7 @@ instance Show Errors where
 
 typingNamedTerm :: VariableContext -> NamedTerm -> Either Errors Type
 typingNamedTerm ctx = leaveEff . (`runReaderDef` ctx) . runEitherDef . ((mapLeftEff TypingError . typing) <=< (mapLeftEff (NameLessError . UnNameError) . unName))
+
+toMinimal :: NamedTerm -> Minimal.Term
+toMinimal (Constant x) = Minimal.Variable x
+toMinimal (Application r) = Minimal.Application (toMinimal $ r ^. #function) (toMinimal $ r ^. #argument)

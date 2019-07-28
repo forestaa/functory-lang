@@ -1,7 +1,9 @@
 module Functory.Syntax.SimplyTypedLambdaSpec (spec) where
 
+
 import Data.Extensible
 import Functory.Syntax.SimplyTypedLambda
+import qualified Functory.Syntax.Minimal as Minimal
 import RIO
 import qualified RIO.Vector as V
 import Test.Hspec
@@ -11,6 +13,7 @@ spec :: Spec
 spec = do
   evalSpec
   typingSpec
+  toMinimalSpec
 
 evalSpec :: Spec
 evalSpec = describe "eval test" $ do
@@ -84,7 +87,25 @@ typingSpec = describe "typing test" $ do
   it "(λx.λy. g x y) (f x)" $ do
     let term = Application (#function @= Abstraction (#name @= "x" <: #type @= Unit <: #body @= Abstraction (#name @= "y" <: #type @= Unit <: #body @= Application (#function @= Application (#function @= Constant "g" <: #argument @= Variable "x" <: nil) <: #argument @= Variable "y" <: nil) <: nil) <: nil) <: #argument @= Application (#function @= Constant "f" <: #argument @= Constant "x" <: nil) <: nil)
         expected = Arrow Unit Unit
-        ctx = V.fromList [("x", ConstantBind Unit), ("f", ConstantBind (Arrow Unit Unit)), ("g", ConstantBind (Arrow Unit (Arrow Unit Unit)))]
+        ctx = V.fromList [("g", ConstantBind (Arrow Unit (Arrow Unit Unit))), ("f", ConstantBind (Arrow Unit Unit)), ("x", ConstantBind Unit)]
     case typingNamedTerm ctx term of
       Left e -> expectationFailure (show e)
       Right ty -> ty `shouldBe` expected
+
+
+toMinimalSpec :: Spec
+toMinimalSpec = describe "toMinimal test" $ do
+  it "x" $ do
+    let term = Constant "x"
+        expected = Minimal.Variable "x"
+    toMinimal term `shouldBe` expected
+
+  it "f x" $ do
+    let term = Application (#function @= Constant "f" <: #argument @= Constant "x" <: nil)
+        expected = Minimal.Application (Minimal.Variable "f") (Minimal.Variable "x")
+    toMinimal term `shouldBe` expected
+
+  it "g (f x) y" $ do
+    let term = Application (#function @= Application (#function @= Constant "g" <: #argument @= Application (#function @= Constant "f" <: #argument @= Constant "x" <: nil) <: nil) <: #argument @= Constant "y" <: nil)
+        expected = Minimal.Application (Minimal.Application (Minimal.Variable "g") (Minimal.Application (Minimal.Variable "f") (Minimal.Variable "x"))) (Minimal.Variable "y")
+    toMinimal term `shouldBe` expected
