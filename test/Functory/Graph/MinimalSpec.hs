@@ -7,45 +7,46 @@ import RIO
 import qualified RIO.Map as Map
 import Test.Hspec
 
-spec :: Spec
-spec = syntaxToGraphSpec
 
-syntaxToGraphSpec :: Spec
-syntaxToGraphSpec = describe "syntaxToGraph test" $ do
+spec :: Spec
+spec = callGraphSpec
+
+callGraphSpec :: Spec
+callGraphSpec = describe "callGraph test" $ do
   it "x" $ do
     let ast      = Variable "x"
-        verticex = Vertice "x"
-        out      = Vertice "out"
-        vertices = Map.fromList [("x", verticex)]
-    case runConvertEff vertices (syntaxToGraph ast) of
+        vertexx  = Vertex "x"
+        out      = Vertex "out"
+        vertices = Map.fromList [("x", vertexx)]
+    case runConvertEff vertices (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [verticex, out] [newEdge verticex out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, out] [newEdge vertexx out]
 
   it "f x" $ do
     let x = Variable "x"
         f = Variable "f"
         ast = Application f x
-        verticex = Vertice "x"
-        verticef = Vertice "f"
-        out = Vertice "out"
-        vertices = Map.fromList [("x", verticex), ("f", verticef)]
-    case runConvertEff vertices (syntaxToGraph ast) of
+        vertexx = Vertex "x"
+        vertexf = Vertex "f"
+        out = Vertex "out"
+        vertices = Map.fromList [("x", vertexx), ("f", vertexf)]
+    case runConvertEff vertices (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [verticex, verticef, out] [newEdge verticex verticef, newEdge verticef out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexf, out] [newEdge vertexx vertexf, newEdge vertexf out]
 
   it "g (f x)" $ do
     let x = Variable "x"
         f = Variable "f"
         g = Variable "g"
         ast = Application g (Application f x)
-        verticex = Vertice "x"
-        verticef = Vertice "f"
-        verticeg = Vertice "g"
-        out = Vertice "out"
-        vertices = Map.fromList [("x", verticex), ("f", verticef), ("g", verticeg)]
-    case runConvertEff vertices (syntaxToGraph ast) of
+        vertexx = Vertex "x"
+        vertexf = Vertex "f"
+        vertexg = Vertex "g"
+        out = Vertex "out"
+        vertices = Map.fromList [("x", vertexx), ("f", vertexf), ("g", vertexg)]
+    case runConvertEff vertices (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [verticex, verticef, verticeg, out] [newEdge verticex verticef, newEdge verticef verticeg, newEdge verticeg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexf, vertexg, out] [newEdge vertexx vertexf, newEdge vertexf vertexg, newEdge vertexg out]
 
   it "g (f x y)" $ do
     let x = Variable "x"
@@ -53,15 +54,15 @@ syntaxToGraphSpec = describe "syntaxToGraph test" $ do
         f = Variable "f"
         g = Variable "g"
         ast = Application g (Application (Application f x) y)
-        verticex = Vertice "x"
-        verticey = Vertice "y"
-        verticef = Vertice "f"
-        verticeg = Vertice "g"
-        out = Vertice "out"
-        vertices = Map.fromList [("x", verticex), ("y", verticey), ("f", verticef), ("g", verticeg)]
-    case runConvertEff vertices (syntaxToGraph ast) of
+        vertexx = Vertex "x"
+        vertexy = Vertex "y"
+        vertexf = Vertex "f"
+        vertexg = Vertex "g"
+        out = Vertex "out"
+        vertices = Map.fromList [("x", vertexx), ("y", vertexy), ("f", vertexf), ("g", vertexg)]
+    case runConvertEff vertices (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [verticex, verticey, verticef, verticeg, out] [newEdge verticex verticef, newEdge verticey verticef, newEdge verticef verticeg, newEdge verticeg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge vertexx vertexf, newEdge vertexy vertexf, newEdge vertexf vertexg, newEdge vertexg out]
 
   it "g (f x) y" $ do
     let x = Variable "x"
@@ -69,12 +70,12 @@ syntaxToGraphSpec = describe "syntaxToGraph test" $ do
         f = Variable "f"
         g = Variable "g"
         ast = Application (Application g (Application f x)) y
-        verticex = Vertice "x"
-        verticey = Vertice "y"
-        verticef = Vertice "f"
-        verticeg = Vertice "g"
-        out = Vertice "out"
-        vertices = Map.fromList [("x", verticex), ("y", verticey), ("f", verticef), ("g", verticeg)]
-    case runConvertEff vertices (syntaxToGraph ast) of
+        vertexx = Vertex "x"
+        vertexy = Vertex "y"
+        vertexf = Vertex "f"
+        vertexg = Vertex "g"
+        out = Vertex "out"
+        vertices = Map.fromList [("x", vertexx), ("y", vertexy), ("f", vertexf), ("g", vertexg)]
+    case runConvertEff vertices (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [verticex, verticey, verticef, verticeg, out] [newEdge verticex verticef, newEdge verticey verticeg, newEdge verticef verticeg, newEdge verticeg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge vertexx vertexf, newEdge vertexy vertexg, newEdge vertexf vertexg, newEdge vertexg out]

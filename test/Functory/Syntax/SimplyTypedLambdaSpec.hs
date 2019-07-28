@@ -15,7 +15,7 @@ evalSpec = describe "eval test" $ do
   it "x -> x" $ do
     let term = Constant "x"
         expected = term
-        ctx = V.fromList $ [("x", ConstantBind Unit)]
+        ctx = V.fromList [("x", ConstantBind Unit)]
     case evalNamedTerm ctx term of
       Left e -> expectationFailure (show e)
       Right term' -> term' `shouldBe` expected
