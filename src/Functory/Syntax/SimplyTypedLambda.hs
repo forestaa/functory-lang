@@ -31,7 +31,7 @@ instance Show (Named b) => Show (Term b) where
   show (Application r) = concat ["(", show (r ^. #function), " ", show (r ^. #argument), ")"]
 
 data TypedBinding = ConstantBind Type | VariableBind Type deriving (Show, Eq)
-type NamingContext = Context TypedBinding
+type VariableContext = Context TypedBinding
 instance Binding Term TypedBinding where
   binding _ = VariableBind Unit             -- cannot use undefined in strict Haskell
 instance FindVar Term 'True TypedBinding where
@@ -94,5 +94,53 @@ evalByOneStep _ = Nothing
 eval :: UnNamedTerm -> UnNamedTerm
 eval t = maybe t eval $ evalByOneStep t
 
-evalNamedTerm :: NamingContext -> NamedTerm -> Either (NameLessErrors TypedBinding) NamedTerm
+evalNamedTerm :: VariableContext -> NamedTerm -> Either (NameLessErrors TypedBinding) NamedTerm
 evalNamedTerm ctx = leaveEff . (`runReaderDef` ctx) . runEitherDef . ((mapLeftEff RestoreNameError . restoreName) <=< (fmap eval . mapLeftEff UnNameError . unName))
+
+
+data TypingError =
+    MissingDeclarationInVariableContext (ContextError 'True TypedBinding)
+  | MissingVariableInVariableContext (ContextError 'False TypedBinding)
+  | NotMathcedTypeInApplication UnNamedTerm Type Type
+  | ArrowTypeExpected UnNamedTerm Type
+  deriving Eq
+instance Show TypingError where
+  show (MissingDeclarationInVariableContext e) = concat ["Missing constant declaration: ", show e]
+  show (MissingVariableInVariableContext e) = show e
+  show (NotMathcedTypeInApplication term got expected) = concat ["Couldn't match type: ", show expected, " expected, Actual type = ", show got, " of ", show term]
+  show (ArrowTypeExpected term got) = concat ["Couldn't match type: Arrow type expected, Actual type = ", show got, " of ", show term]
+
+typing :: (MonadReader VariableContext m, MonadError TypingError m) => UnNamedTerm -> m Type
+typing (Constant x) = do
+  ctx <- ask
+  case V.find ((==) x . fst) ctx of
+    Just (_, ConstantBind ty) -> pure ty
+    _ -> throwError . MissingDeclarationInVariableContext $ MissingVariableInContext x ctx
+typing (Variable x) = do
+  ctx <- ask
+  case ctx V.!? x of
+    Just (_, VariableBind ty) -> pure ty
+    _ -> throwError . MissingVariableInVariableContext $ MissingVariableInContext x ctx
+typing (Abstraction r) = do
+  let domain = r ^. #type
+  codomain <- local (V.cons (r ^. #name, VariableBind domain)) $ typing (r ^. #body)
+  pure $ Arrow domain codomain
+typing (Application r) = do
+  fty <- typing $ r ^. #function
+  argty <- typing $ r ^. #argument
+  case fty of
+    Arrow domain codomain 
+      | domain == argty -> pure codomain
+      | otherwise-> throwError $ NotMathcedTypeInApplication (r ^. #argument) argty domain
+    _ -> throwError $ ArrowTypeExpected (r ^. #function) fty
+
+data Errors = 
+    NameLessError (NameLessErrors TypedBinding)
+  | TypingError TypingError
+  deriving (Eq)
+instance Show Errors where
+  show (NameLessError e) = concat ["NameLess Error: ", show e]
+  show (TypingError e)   = concat ["Typing Error: ", show e]
+
+typingNamedTerm :: VariableContext -> NamedTerm -> Either Errors Type
+typingNamedTerm ctx = leaveEff . (`runReaderDef` ctx) . runEitherDef . ((mapLeftEff TypingError . typing) <=< (mapLeftEff (NameLessError . UnNameError) . unName))

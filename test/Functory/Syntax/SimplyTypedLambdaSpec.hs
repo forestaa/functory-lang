@@ -8,7 +8,9 @@ import Test.Hspec
 
 
 spec :: Spec
-spec = evalSpec
+spec = do
+  evalSpec
+  typingSpec
 
 evalSpec :: Spec
 evalSpec = describe "eval test" $ do
@@ -51,3 +53,38 @@ evalSpec = describe "eval test" $ do
     case evalNamedTerm ctx term of
       Left e -> expectationFailure (show e)
       Right term' -> term' `shouldBe` expected
+
+
+typingSpec :: Spec
+typingSpec = describe "typing test" $ do
+  it "x" $ do
+    let term = Constant "x"
+        expected = Unit
+        ctx = V.fromList [("x", ConstantBind Unit)]
+    case typingNamedTerm ctx term of
+      Left e -> expectationFailure (show e)
+      Right ty -> ty `shouldBe` expected
+
+  it "f x" $ do
+    let term = Application (#function @= Constant "f" <: #argument @= Constant "x" <: nil)
+        expected = Unit
+        ctx = V.fromList [("f", ConstantBind (Arrow Unit Unit)), ("x", ConstantBind Unit)]
+    case typingNamedTerm ctx term of
+      Left e -> expectationFailure (show e)
+      Right ty -> ty `shouldBe` expected
+
+  it "(λx. x) y" $ do
+    let term = Application (#function @= Abstraction (#name @= "x" <: #type @= Unit <: #body @= Variable "x" <: nil) <: #argument @= Constant "y" <: nil)
+        expected = Unit
+        ctx = V.fromList [("y", ConstantBind Unit)]
+    case typingNamedTerm ctx term of
+      Left e -> expectationFailure (show e)
+      Right ty -> ty `shouldBe` expected
+
+  it "(λx.λy. g x y) (f x)" $ do
+    let term = Application (#function @= Abstraction (#name @= "x" <: #type @= Unit <: #body @= Abstraction (#name @= "y" <: #type @= Unit <: #body @= Application (#function @= Application (#function @= Constant "g" <: #argument @= Variable "x" <: nil) <: #argument @= Variable "y" <: nil) <: nil) <: nil) <: #argument @= Application (#function @= Constant "f" <: #argument @= Constant "x" <: nil) <: nil)
+        expected = Arrow Unit Unit
+        ctx = V.fromList [("x", ConstantBind Unit), ("f", ConstantBind (Arrow Unit Unit)), ("g", ConstantBind (Arrow Unit (Arrow Unit Unit)))]
+    case typingNamedTerm ctx term of
+      Left e -> expectationFailure (show e)
+      Right ty -> ty `shouldBe` expected
