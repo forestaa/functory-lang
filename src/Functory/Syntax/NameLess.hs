@@ -1,11 +1,7 @@
 module Functory.Syntax.NameLess where
 
-import RIO
-import qualified RIO.Map as Map
-
 import Control.Monad.Except
-
-
+import RIO
 import SString
 
 
@@ -23,8 +19,7 @@ type family Not (a :: Bool) where
 class Binding (f :: Bool -> *) b where
   binding :: Proxy f -> b
 
-type Context b = Map.Map SString b
-
+type Context b = Vector (SString, b)
 data ContextError a b = 
     MissingVariableInContext (Named a) (Context b)
 deriving instance (Eq (Named a), Eq b) => Eq (ContextError a b)
@@ -49,12 +44,3 @@ unName = nameless
 type RestoreNameError b = ContextError 'False b
 restoreName :: NameLess f 'False b m => f 'False -> m (f 'True)
 restoreName = nameless
-
--- leaveUnName :: NameLess f 'True b m => Context b -> f 'True -> Either (UnNameError b) (f 'False)
--- leaveUnName ctx t = leaveEff . (`runReaderDef` ctx) . runEitherDef $ unName t
--- leaveRestoreName :: NameLess f 'False b => Context b -> f 'False -> Either (RestoreNameError b) (f 'True)
--- leaveRestoreName ctx t = leaveEff . (`runReaderDef` ctx) . runEitherDef $ restoreName t
--- leaveUnRestoreName :: (NameLess f 'True b, NameLess f 'False b) => Context b -> f 'True -> Either (NameLessErrors b) (f 'True)
--- leaveUnRestoreName ctx t = leaveEff . (`runReaderDef` ctx) . runEitherDef $ do
---   t' <- mapLeftDef UnNameError $ unName t
---   mapLeftDef RestoreNameError $ restoreName t'
