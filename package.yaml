@@ -37,6 +37,8 @@ default-extensions:
 - NoImplicitPrelude
 - OverloadedLabels
 - OverloadedStrings
+- PolyKinds
+- ScopedTypeVariables
 - StandaloneDeriving
 - Strict
 - StrictData
