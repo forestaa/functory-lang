@@ -30,7 +30,7 @@ runCallGraph :: Minimal.VertexMap a
     , "typing" >: EitherEff Lambda.TypingError
     , "callGraphMinimal" >: EitherEff Minimal.ConvertError
     , "callGraphSimple" >: EitherEff ConvertError
-    ] b 
+    ] b
   -> Either CallGraphError b
 runCallGraph vertices ctx = join . join . join . join . leaveEff . runCallGraphSimple . runCallGraphMinimal . runTyping . runRestoreName . runUnName . flip (runReaderEff @"context") ctx . flip (evalStateEff @"vertices") vertices
   where
