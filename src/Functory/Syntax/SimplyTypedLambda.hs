@@ -1,8 +1,8 @@
 module Functory.Syntax.SimplyTypedLambda where
 
 import Control.Monad.Except
+import qualified Data.Bifunctor as Bi
 import Data.Extensible
-import Data.Extensible.Effect.Default
 import qualified Functory.Syntax.Minimal as Minimal
 import Functory.Syntax.NameLess
 import RIO
@@ -42,20 +42,20 @@ instance FindVar Term 'True TypedBinding where
       isBound _ = False
 instance FindVar Term 'False TypedBinding where
   findvar _ ctx x = fst <$> ctx V.!? x
-instance (FindVar Term a b, Binding Term b, MonadReader (Context b) m, MonadError (ContextError a b) m) => NameLess Term a b m where
-  nameless (Constant x) = pure $ Constant x
-  nameless (Variable x) = do
-    ctx <- ask
+instance (FindVar Term a b, Binding Term b, Lookup xs "context" (ReaderEff (Context b)), Lookup xs k (EitherEff (ContextError a b))) => NameLess Term a b k xs where
+  nameless _ (Constant x) = pure $ Constant x
+  nameless k (Variable x) = do
+    ctx <- askEff #context
     case findvar (Proxy :: Proxy Term) ctx x of
       Just x' -> pure $ Variable x'
-      Nothing -> throwError $ MissingVariableInContext x ctx
-  nameless (Abstraction r) = do
+      Nothing -> throwEff k $ MissingVariableInContext x ctx
+  nameless k (Abstraction r) = do
     let name = r ^. #name
-    body <- local (V.cons (name, binding (Proxy :: Proxy Term))) $ nameless (r ^. #body)
+    body <- localEff #context (V.cons (name, binding (Proxy :: Proxy Term))) $ nameless k (r ^. #body)
     pure . Abstraction $ #name @= name <: #type @= r ^. #type <: #body @= body <: nil
-  nameless (Application r) = do
-    f <- nameless $ r ^. #function
-    arg <- nameless $ r ^. #argument
+  nameless k (Application r) = do
+    f <- nameless k $ r ^. #function
+    arg <- nameless k $ r ^. #argument
     pure . Application $ #function @= f <: #argument @= arg <: nil
 
 
@@ -96,7 +96,10 @@ eval :: UnNamedTerm -> UnNamedTerm
 eval t = maybe t eval $ evalByOneStep t
 
 evalNamedTerm :: VariableContext -> NamedTerm -> Either (NameLessErrors TypedBinding) NamedTerm
-evalNamedTerm ctx = leaveEff . (`runReaderDef` ctx) . runEitherDef . ((mapLeftEff RestoreNameError . restoreName) <=< (fmap eval . mapLeftEff UnNameError . unName))
+evalNamedTerm ctx = join . leaveEff . runUnName . runRestoreName . flip (runReaderEff @"context") ctx . (restoreName <=< (fmap eval . unName))
+  where
+    runRestoreName = fmap (Bi.first RestoreNameError) . runEitherEff @"restoreName"
+    runUnName = fmap (Bi.first UnNameError) . runEitherEff @"unName"
 
 
 data TypingError =
@@ -111,20 +114,20 @@ instance Show TypingError where
   show (NotMathcedTypeInApplication term got expected) = concat ["Couldn't match type: ", show expected, " expected, Actual type = ", show got, " of ", show term]
   show (ArrowTypeExpected term got) = concat ["Couldn't match type: Arrow type expected, Actual type = ", show got, " of ", show term]
 
-typing :: (MonadReader VariableContext m, MonadError TypingError m) => UnNamedTerm -> m Type
+typing :: (Lookup xs "context" (ReaderEff VariableContext), Lookup xs "typing" (EitherEff TypingError)) => UnNamedTerm -> Eff xs Type
 typing (Constant x) = do
-  ctx <- ask
+  ctx <- askEff #context
   case V.find ((==) x . fst) ctx of
     Just (_, ConstantBind ty) -> pure ty
-    _ -> throwError . MissingDeclarationInVariableContext $ MissingVariableInContext x ctx
+    _ -> throwEff #typing . MissingDeclarationInVariableContext $ MissingVariableInContext x ctx
 typing (Variable x) = do
-  ctx <- ask
+  ctx <- askEff #context
   case ctx V.!? x of
     Just (_, VariableBind ty) -> pure ty
-    _ -> throwError . MissingVariableInVariableContext $ MissingVariableInContext x ctx
+    _ -> throwEff #typing . MissingVariableInVariableContext $ MissingVariableInContext x ctx
 typing (Abstraction r) = do
   let domain = r ^. #type
-  codomain <- local (V.cons (r ^. #name, VariableBind domain)) $ typing (r ^. #body)
+  codomain <- localEff #context (V.cons (r ^. #name, VariableBind domain)) $ typing (r ^. #body)
   pure $ Arrow domain codomain
 typing (Application r) = do
   fty <- typing $ r ^. #function
@@ -132,8 +135,8 @@ typing (Application r) = do
   case fty of
     Arrow domain codomain 
       | domain == argty -> pure codomain
-      | otherwise-> throwError $ NotMathcedTypeInApplication (r ^. #argument) argty domain
-    _ -> throwError $ ArrowTypeExpected (r ^. #function) fty
+      | otherwise-> throwEff #typing $ NotMathcedTypeInApplication (r ^. #argument) argty domain
+    _ -> throwEff #typing $ ArrowTypeExpected (r ^. #function) fty
 
 data Errors = 
     NameLessError (NameLessErrors TypedBinding)
@@ -144,7 +147,11 @@ instance Show Errors where
   show (TypingError e)   = concat ["Typing Error: ", show e]
 
 typingNamedTerm :: VariableContext -> NamedTerm -> Either Errors Type
-typingNamedTerm ctx = leaveEff . (`runReaderDef` ctx) . runEitherDef . ((mapLeftEff TypingError . typing) <=< (mapLeftEff (NameLessError . UnNameError) . unName))
+typingNamedTerm ctx = join . leaveEff . flip (runReaderEff @"context") ctx . runTyping . runUnName . (typing <=< unName)
+  where
+    runUnName = fmap (Bi.first (NameLessError . UnNameError)) . runEitherEff @"unName"
+    runTyping = fmap (Bi.first TypingError) . runEitherEff @"typing"
+
 
 toMinimal :: NamedTerm -> Minimal.Term
 toMinimal (Constant x) = Minimal.Variable x
