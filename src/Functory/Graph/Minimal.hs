@@ -10,14 +10,14 @@ import SString
 
 type GraphWithOutput a =  (Vertex a, Vertex a -> Graph a)
 type VertexMap a = Map.Map SString (Vertex a)
-data ConvertError = 
-    UndefinedNode SString 
+data ConvertError =
+    UndefinedNode SString
   deriving (Show, Eq)
-runConvertEff :: VertexMap a 
+runConvertEff :: VertexMap a
   -> Eff '[
       "vertices" >: State (VertexMap a)
     , "callGraphMinimal" >: EitherEff ConvertError
-    ] b 
+    ] b
   -> Either ConvertError b
 runConvertEff vertices = leaveEff . runEitherEff @"callGraphMinimal" . flip (evalStateEff @"vertices") vertices
 
@@ -32,12 +32,12 @@ lookupVertice x = getsEff #vertices (Map.lookup x) >>= \case
 callGraph :: (
     Lookup xs "vertices" (State (VertexMap a))
   , Lookup xs "callGraphMinimal" (EitherEff ConvertError)
-  , Ord a) 
-  => Term 
+  , Ord a)
+  => Term
   -> Eff xs (GraphWithOutput a)
 callGraph (Variable x) = do
   vertice <- lookupVertice x
-  pure (vertice, \out -> newGraph [vertice, out] [newEdge vertice out])
+  pure (vertice, \out -> newGraph [vertice, out] [newEdge undefined vertice out])
 callGraph (Application f x) = do
   (input, graphf) <- callGraph f
   (_, graphx) <- callGraph x
