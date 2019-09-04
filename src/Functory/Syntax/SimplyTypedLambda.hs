@@ -10,14 +10,14 @@ import qualified RIO.Vector as V
 import SString
 
 
-data Type = 
+data Type =
     Unit
   | Arrow Type Type
   deriving (Eq)
-data Term b = 
+data Term b =
     Constant SString
-  | Variable (Named b) 
-  | Abstraction (Record '["name" :> SString, "type" :> Type, "body" :> Term b]) 
+  | Variable (Named b)
+  | Abstraction (Record '["name" :> SString, "type" :> Type, "body" :> Term b])
   | Application (Record '["function" :> Term b, "argument" :> Term b])
 deriving instance (Eq (Named b)) => Eq (Term b)
 type NamedTerm = Term 'True
@@ -114,17 +114,21 @@ instance Show TypingError where
   show (NotMathcedTypeInApplication term got expected) = concat ["Couldn't match type: ", show expected, " expected, Actual type = ", show got, " of ", show term]
   show (ArrowTypeExpected term got) = concat ["Couldn't match type: Arrow type expected, Actual type = ", show got, " of ", show term]
 
-typing :: (Lookup xs "context" (ReaderEff VariableContext), Lookup xs "typing" (EitherEff TypingError)) => UnNamedTerm -> Eff xs Type
+isBaseType :: Type -> Bool
+isBaseType Unit = True
+isBaseType _ = False
+
+typing :: (Lookup xs "context" (ReaderEff VariableContext), Lookup xs "typingSimple" (EitherEff TypingError)) => UnNamedTerm -> Eff xs Type
 typing (Constant x) = do
   ctx <- askEff #context
   case V.find ((==) x . fst) ctx of
     Just (_, ConstantBind ty) -> pure ty
-    _ -> throwEff #typing . MissingDeclarationInVariableContext $ MissingVariableInContext x ctx
+    _ -> throwEff #typingSimple . MissingDeclarationInVariableContext $ MissingVariableInContext x ctx
 typing (Variable x) = do
   ctx <- askEff #context
   case ctx V.!? x of
     Just (_, VariableBind ty) -> pure ty
-    _ -> throwEff #typing . MissingVariableInVariableContext $ MissingVariableInContext x ctx
+    _ -> throwEff #typingSimple . MissingVariableInVariableContext $ MissingVariableInContext x ctx
 typing (Abstraction r) = do
   let domain = r ^. #type
   codomain <- localEff #context (V.cons (r ^. #name, VariableBind domain)) $ typing (r ^. #body)
@@ -133,12 +137,12 @@ typing (Application r) = do
   fty <- typing $ r ^. #function
   argty <- typing $ r ^. #argument
   case fty of
-    Arrow domain codomain 
+    Arrow domain codomain
       | domain == argty -> pure codomain
-      | otherwise-> throwEff #typing $ NotMathcedTypeInApplication (r ^. #argument) argty domain
-    _ -> throwEff #typing $ ArrowTypeExpected (r ^. #function) fty
+      | otherwise-> throwEff #typingSimple $ NotMathcedTypeInApplication (r ^. #argument) argty domain
+    _ -> throwEff #typingSimple $ ArrowTypeExpected (r ^. #function) fty
 
-data Errors = 
+data Errors =
     NameLessError (NameLessErrors TypedBinding)
   | TypingError TypingError
   deriving (Eq)
@@ -150,7 +154,7 @@ typingNamedTerm :: VariableContext -> NamedTerm -> Either Errors Type
 typingNamedTerm ctx = join . leaveEff . flip (runReaderEff @"context") ctx . runTyping . runUnName . (typing <=< unName)
   where
     runUnName = fmap (Bi.first (NameLessError . UnNameError)) . runEitherEff @"unName"
-    runTyping = fmap (Bi.first TypingError) . runEitherEff @"typing"
+    runTyping = fmap (Bi.first TypingError) . runEitherEff @"typingSimple"
 
 
 toMinimal :: NamedTerm -> Minimal.Term
