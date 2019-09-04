@@ -11,18 +11,16 @@ import           Text.Parsec (ParsecT, Stream)
 import           Text.Parsec.Expr
 import qualified Text.Parsec.Token as P
 import           Text.Parsec.Token (GenLanguageDef(..))
--- import           Text.ParserCombinators.Parsec hiding ((<|>))
--- import           Text.ParserCombinators.Parsec.Expr
 
 functoryLang :: Stream s m Char => GenLanguageDef s u m
-functoryLang = LanguageDef 
+functoryLang = LanguageDef
   { commentStart = ""
   , commentEnd = ""
   , commentLine = "%"
   , nestedComments = False
   , identStart = P.lower <|> P.oneOf "_"
   , identLetter = P.alphaNum <|> P.oneOf "_"
-  , opStart = P.oneOf "+-*/" 
+  , opStart = P.oneOf "+-*/"
   , opLetter = P.oneOf "+-*/"
   , reservedNames = ["fun", ":", "->", "let", "in"]
   , reservedOpNames = ["->"]
@@ -50,7 +48,7 @@ typeExp = buildExpressionParser typeExprTable typeTerm
   where
     typeTerm = baseType
     typeExprTable = [
-        [Infix (arrowType) AssocRight]
+        [Infix arrowType AssocRight]
       ]
 
 unitType :: Stream s m Char => ParsecT s u m Type
@@ -60,7 +58,7 @@ baseType :: Stream s m Char => ParsecT s u m Type
 baseType = unitType
 
 arrowType :: Stream s m Char => ParsecT s u m (Type -> Type -> Type)
-arrowType =  reservedOp "->" $> Arrow 
+arrowType =  reservedOp "->" $> Arrow
 
 termExp :: Stream s m Char => ParsecT s u m NamedTerm
 termExp = P.choice [
@@ -95,7 +93,7 @@ letTerm = do
   pure $ Application (#function @= Abstraction (#name @= x <: #type @= ty <: #body @= body <: nil) <: #argument @= t <: nil)
 
 definitionArgumentList :: Stream s m Char => ParsecT s u m [(SString, Type)]
-definitionArgumentList = identifierWithType `P.sepBy` (symbol ",")
+definitionArgumentList = identifierWithType `P.sepBy` symbol ","
 
 funcDefinition :: Stream s m Char => ParsecT s u m (String, NamedTerm)
 funcDefinition = do
@@ -104,4 +102,5 @@ funcDefinition = do
   args <- P.between (symbol "(") (symbol ")") definitionArgumentList
   reserved "="
   body <- termExp
-  pure $ (f, foldr (\(x, ty) term -> Abstraction (#name @= x <: #type @= ty <: #body @= term <: nil)) body args)
+  let t = foldr (\(x, ty) term -> Abstraction (#name @= x <: #type @= ty <: #body @= term <: nil)) body args
+  pure (f, t)

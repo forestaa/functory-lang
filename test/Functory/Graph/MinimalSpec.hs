@@ -5,6 +5,7 @@ import Functory.Graph.Minimal
 import Functory.Syntax.Minimal
 import RIO
 import qualified RIO.Map as Map
+import qualified RIO.Vector as V
 import Test.Hspec
 
 
@@ -18,9 +19,11 @@ callGraphSpec = describe "callGraph test" $ do
         vertexx  = Vertex "x"
         out      = Vertex "out"
         vertices = Map.fromList [("x", vertexx)]
-    case runConvertEff vertices (callGraph ast) of
+        items = Map.fromList [(Unit, 0)]
+        ctx = V.fromList [("x", Unit)]
+    case runConvertEff vertices items ctx (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, out] [newEdge vertexx out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, out] [newEdge 0 vertexx out]
 
   it "f x" $ do
     let x = Variable "x"
@@ -30,9 +33,11 @@ callGraphSpec = describe "callGraph test" $ do
         vertexf = Vertex "f"
         out = Vertex "out"
         vertices = Map.fromList [("x", vertexx), ("f", vertexf)]
-    case runConvertEff vertices (callGraph ast) of
+        items = Map.fromList [(Unit, 0)]
+        ctx = V.fromList [("x", Unit), ("f", Arrow Unit Unit)]
+    case runConvertEff vertices items ctx (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexf, out] [newEdge vertexx vertexf, newEdge vertexf out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexf, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexf out]
 
   it "g (f x)" $ do
     let x = Variable "x"
@@ -44,9 +49,11 @@ callGraphSpec = describe "callGraph test" $ do
         vertexg = Vertex "g"
         out = Vertex "out"
         vertices = Map.fromList [("x", vertexx), ("f", vertexf), ("g", vertexg)]
-    case runConvertEff vertices (callGraph ast) of
+        items = Map.fromList [(Unit, 0)]
+        ctx = V.fromList [("x", Unit), ("f", Arrow Unit Unit), ("g", Arrow Unit Unit)]
+    case runConvertEff vertices items ctx (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexf, vertexg, out] [newEdge vertexx vertexf, newEdge vertexf vertexg, newEdge vertexg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
 
   it "g (f x y)" $ do
     let x = Variable "x"
@@ -60,9 +67,11 @@ callGraphSpec = describe "callGraph test" $ do
         vertexg = Vertex "g"
         out = Vertex "out"
         vertices = Map.fromList [("x", vertexx), ("y", vertexy), ("f", vertexf), ("g", vertexg)]
-    case runConvertEff vertices (callGraph ast) of
+        items = Map.fromList [(Unit, 0)]
+        ctx = V.fromList [("x", Unit), ("y", Unit), ("f", Arrow Unit (Arrow Unit Unit)), ("g", Arrow Unit Unit)]
+    case runConvertEff vertices items ctx (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge vertexx vertexf, newEdge vertexy vertexf, newEdge vertexf vertexg, newEdge vertexg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexy vertexf, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
 
   it "g (f x) y" $ do
     let x = Variable "x"
@@ -76,6 +85,8 @@ callGraphSpec = describe "callGraph test" $ do
         vertexg = Vertex "g"
         out = Vertex "out"
         vertices = Map.fromList [("x", vertexx), ("y", vertexy), ("f", vertexf), ("g", vertexg)]
-    case runConvertEff vertices (callGraph ast) of
+        items = Map.fromList [(Unit, 0)]
+        ctx = V.fromList [("x", Unit), ("y", Unit), ("f", Arrow Unit Unit), ("g", Arrow Unit (Arrow Unit Unit))]
+    case runConvertEff vertices items ctx (callGraph ast) of
       Left e -> expectationFailure (show e)
-      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge vertexx vertexf, newEdge vertexy vertexg, newEdge vertexf vertexg, newEdge vertexg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexy vertexg, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
