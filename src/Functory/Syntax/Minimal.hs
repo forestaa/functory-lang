@@ -13,7 +13,7 @@ data Term = Variable SString | Application Term Term -- normalized term
 
 type VariableContext = Vector (SString, Type)
 data TypingError =
-    MissingVarialbe SString
+    MissingVariable SString
   | TypeNotMatch Type Type
   deriving (Eq, Show)
 
@@ -22,7 +22,7 @@ typing (Variable x) = do
   ctx <- askEff #contextMinimal
   case V.find ((==) x . fst) ctx of
     Just (_, ty) -> pure ty
-    Nothing -> throwEff #typingMinimal $ MissingVarialbe x
+    Nothing -> throwEff #typingMinimal $ MissingVariable x
 typing (Application f x) = do
   fty <- typing f
   xty <- typing x
