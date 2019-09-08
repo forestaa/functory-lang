@@ -1,17 +1,20 @@
 module Functory.Graph.SimplyTypedLambda where
 
 import Control.Monad.Except
+import Data.Maybe
 import qualified Data.Bifunctor as Bi
 import Data.Extensible
+import Functory.Graph
 import qualified Functory.Graph.Minimal as Minimal
 import qualified Functory.Syntax.Minimal as Minimal
 import qualified Functory.Syntax.NameLess as NL
 import qualified Functory.Syntax.SimplyTypedLambda as Lambda
 import RIO
 import qualified RIO.Map as Map
+import qualified RIO.Vector as V
 
 data ConvertError =
-    TypeIsNotUnit Lambda.Type
+    TypeIsNotBase Lambda.NamedTerm Lambda.Type
   deriving (Show, Eq)
 
 data CallGraphError =
@@ -54,7 +57,7 @@ runCallGraph vertices items ctxMinimal ctx = join . join . join . join . join . 
 
 
 callGraph :: (
-    Lookup xs "vertices" (ReaderEff (Minimal.VertexMap b))
+    Lookup xs "vertices" (ReaderEff (Minimal.VertexMap a))
   , Lookup xs "typeItem" (ReaderEff (Map.Map Minimal.Type a))
   , Lookup xs "context" (ReaderEff Lambda.VariableContext)
   , Lookup xs "unName"      (EitherEff (NL.UnNameError Lambda.TypedBinding))
@@ -65,13 +68,20 @@ callGraph :: (
   , Lookup xs "callGraphMinimal" (EitherEff Minimal.ConvertError)
   , Lookup xs "callGraphSimple"   (EitherEff ConvertError)
   , Ord a
-  , Ord b
   )
   => Lambda.NamedTerm
-  -> Eff xs (Minimal.GraphWithOutput a b)
+  -> Eff xs (Minimal.GraphWithOutput a a, Lambda.Type)
 callGraph term = do
-  term' <- NL.unName term
-  ty <- Lambda.typing term'
-  if Lambda.isBaseType ty
-    then (Minimal.callGraph <=< (fmap Lambda.toMinimal . NL.restoreName)) $ Lambda.eval term'
-    else throwEff #callGraphSimple $ TypeIsNotUnit ty
+  ty <- Lambda.typing =<< NL.unName term
+  items <- askEff #typeItem
+  let (term', ctx) = Lambda.populateArgument term
+  localEff #context ((V.++) (fmap g ctx)) . localEff #contextMinimal ((V.++) (fmap f ctx)) .
+    localEff #vertices (\m -> V.foldr (\(x, Lambda.Unit) m -> maybe m (\b -> Map.insert x (Vertex b) m) $ items Map.!? Minimal.Unit) m ctx) $ do
+      term'' <- NL.unName term'
+      ty' <- Lambda.typing term''
+      if Lambda.isBaseType ty'
+        then fmap (, ty) . (Minimal.callGraph <=< (fmap Lambda.toMinimal . NL.restoreName)) $ Lambda.eval term''
+        else throwEff #callGraphSimple $ TypeIsNotBase term' ty'
+  where
+    f (x, Lambda.Unit) = (x, Minimal.Unit)
+    g (x, ty) = (x, Lambda.VariableBind ty)
