@@ -14,6 +14,7 @@ spec = do
   evalSpec
   typingSpec
   toMinimalSpec
+  populateArgumentSpec
 
 evalSpec :: Spec
 evalSpec = describe "eval test" $ do
@@ -109,3 +110,20 @@ toMinimalSpec = describe "toMinimal test" $ do
     let term = Application (#function @= Application (#function @= Variable "g" <: #argument @= Application (#function @= Variable "f" <: #argument @= Variable "x" <: nil) <: nil) <: #argument @= Variable "y" <: nil)
         expected = Minimal.Application (Minimal.Application (Minimal.Variable "g") (Minimal.Application (Minimal.Variable "f") (Minimal.Variable "x"))) (Minimal.Variable "y")
     toMinimal term `shouldBe` expected
+
+populateArgumentSpec :: Spec
+populateArgumentSpec = describe "pupulateArgument test" $ do
+  it "(λx. x)" $ do
+    let term = Abstraction (#name @= "x" <: #type @= Unit <: #body @= Variable "x" <: nil)
+        expected = Application (#function @= Abstraction (#name @= "x" <: #type @= Unit <: #body @= Variable "x" <: nil) <: #argument @= Variable "0" <: nil)
+    fst (populateArgument term) `shouldBe` expected
+
+  it "(λx. λy. f x y)" $ do
+    let term = Abstraction (#name @= "x" <: #type @= Unit <: #body @= Abstraction (#name @= "y" <: #type @= Unit <: #body @= Application (#function @= Application (#function @= Variable "f" <: #argument @= Variable "x" <: nil) <: #argument @= Variable "y" <: nil) <: nil) <: nil)
+        expected = Application (#function @= (Abstraction $ #name @= "x" <: #type @= Unit <: #body @= Application (#function @= Abstraction (#name @= "y" <: #type @= Unit <: #body @= Application (#function @= Application (#function @= Variable "f" <: #argument @= Variable "x" <: nil) <: #argument @= Variable "y" <: nil) <: nil) <: #argument @= Variable "1" <: nil) <: nil) <: #argument @= Variable "0" <: nil)
+    fst (populateArgument term) `shouldBe` expected
+
+  it "λwood. λwater. let energy = slash(wood) in fire(energy, water)" $ do
+    let term = Abstraction (#name @= "wood" <: #type @= Unit <: #body @= Abstraction (#name @= "water" <: #type @= Unit <: #body @= Application (#function @= Abstraction (#name @= "energy" <: #type @= Unit <: #body @= Application (#function @= Application (#function @= Variable "fire" <: #argument @= Variable "energy" <: nil) <: #argument @= Variable "water" <: nil) <: nil) <: #argument @= Application (#function @= Variable "slash" <: #argument @= Variable "wood" <: nil) <: nil) <: nil) <: nil)
+        expected = Application (#function @= Abstraction (#name @= "wood" <: #type @= Unit <: #body @= Application (#function @= Abstraction (#name @= "water" <: #type @= Unit <: #body @= Application (#function @= Abstraction (#name @= "energy" <: #type @= Unit <: #body @= Application (#function @= Application (#function @= Variable "fire" <: #argument @= Variable "energy" <: nil) <: #argument @= Variable "water" <: nil) <: nil) <: #argument @= Application (#function @= Variable "slash" <: #argument @= Variable "wood" <: nil) <: nil) <: nil) <: #argument @= Variable "1" <: nil) <: nil) <: #argument @= Variable "0" <: nil)
+    fst (populateArgument term) `shouldBe` expected

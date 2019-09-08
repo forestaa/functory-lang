@@ -149,3 +149,13 @@ typingNamedTerm ctx = join . leaveEff . flip (runReaderEff @"context") ctx . run
 toMinimal :: NamedTerm -> Minimal.Term
 toMinimal (Variable x) = Minimal.Variable x
 toMinimal (Application r) = Minimal.Application (toMinimal $ r ^. #function) (toMinimal $ r ^. #argument)
+
+populateArgument :: NamedTerm -> (NamedTerm, Vector (SString, Type))
+populateArgument = leaveEff . flip (evalStateEff @"unique") 0 . populateArgumentInternal
+populateArgumentInternal :: Lookup xs "unique" (State Int) => NamedTerm -> Eff xs (NamedTerm, Vector (SString, Type))
+populateArgumentInternal (Abstraction r) = do
+  name <- getsEff #unique $ pack . show
+  modifyEff #unique $ (+) 1
+  (body, ctx) <- populateArgumentInternal $ r ^. #body
+  pure $ (Application $ #function @= (Abstraction $ set #body body r) <: #argument @= Variable name <: nil, V.cons (name, r ^. #type) ctx)
+populateArgumentInternal x = pure (x, V.empty)
