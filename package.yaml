@@ -67,7 +67,7 @@ library:
 executables:
   functory-exe:
     main:                Main.hs
-    source-dirs:         app
+    source-dirs:         app/CLI
     ghc-options:
     - -threaded
     - -rtsopts
