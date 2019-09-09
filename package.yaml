@@ -21,6 +21,8 @@ description:         Please see the README on GitHub at <https://github.com/fore
 
 dependencies:
 - base >= 4.7 && < 5
+- aeson
+- bytestring
 - extensible
 - mtl
 - parsec
@@ -28,6 +30,7 @@ dependencies:
 
 default-extensions:
 - DataKinds
+- DeriveGeneric
 - DerivingVia
 - GeneralizedNewtypeDeriving
 - KindSignatures
@@ -43,6 +46,7 @@ default-extensions:
 - StandaloneDeriving
 - Strict
 - StrictData
+- TupleSections
 - TypeApplications
 - TypeFamilyDependencies
 - TypeOperators
@@ -63,7 +67,7 @@ library:
 executables:
   functory-exe:
     main:                Main.hs
-    source-dirs:         app
+    source-dirs:         app/CLI
     ghc-options:
     - -threaded
     - -rtsopts

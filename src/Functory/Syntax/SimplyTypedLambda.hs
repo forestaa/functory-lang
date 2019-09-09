@@ -1,6 +1,7 @@
 module Functory.Syntax.SimplyTypedLambda where
 
 import Control.Monad.Except
+import Data.Aeson
 import qualified Data.Bifunctor as Bi
 import Data.Extensible
 import qualified Functory.Syntax.Minimal as Minimal
@@ -13,7 +14,7 @@ import SString
 data Type =
     Unit
   | Arrow Type Type
-  deriving (Eq)
+  deriving (Eq, Generic)
 data Term b =
     Variable (Named b)
   | Abstraction (Record '["name" :> SString, "type" :> Type, "body" :> Term b])
@@ -28,6 +29,10 @@ instance Show (Named b) => Show (Term b) where
   show (Variable x) = show x
   show (Abstraction r) = concat ["(λ", show (r ^. #name), ": ", show (r ^. #type), ". ", show (r ^. #body), ")"]
   show (Application r) = concat ["(", show (r ^. #function), " ", show (r ^. #argument), ")"]
+instance ToJSON Type where
+  toJSON = String . utf8BuilderToText . displayShow
+instance FromJSON Type where
+  parseJSON = withText "Type" $ \s -> pure Unit
 
 data TypedBinding = VariableBind Type deriving (Show, Eq)
 type VariableContext = Context TypedBinding
