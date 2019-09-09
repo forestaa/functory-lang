@@ -3,8 +3,14 @@ module Main where
 import CLI.Graph
 import qualified Data.ByteString.Lazy.Char8 as C
 import RIO
+import System.IO (stdout, stderr)
 
 main :: IO ()
 main = do
-  C.putStrLn "Functory: waiting for input..."
-  C.interact $ C.unlines . fmap compile . C.lines
+  C.hPutStrLn stderr "Functory: waiting for input..."
+  content <- C.getContents
+  forM_ (C.lines content) $ \input -> do
+    let result = compile input
+    C.hPutStrLn stdout result
+    hFlush stdout
+    C.hPutStrLn stderr $ mappend "Functory: write output: " result
