@@ -16,13 +16,13 @@ import qualified RIO.Map as Map
 import qualified RIO.Vector as V
 import qualified Text.Parsec as P
 
-newtype CompileOutput = CompileOutput (Record '["status" >: Int, "result" >: Maybe CompileResult, "description" >: Maybe String]) deriving (ToJSON, FromJSON)
+newtype CompileResult = CompileResult (Record '["status" >: Int, "output" >: Maybe CompileOutput, "description" >: Maybe String]) deriving (ToJSON, FromJSON)
 compile :: ByteString -> ByteString
 compile s = case compileInternal s of
-  Right result -> encode . CompileOutput $ #status @= 0 <: #result @= Just result <: #description @= Nothing <: nil
+  Right output -> encode . CompileResult $ #status @= 0 <: #output @= Just output <: #description @= Nothing <: nil
   Left e -> do
     let (status, desc) = errorDesc e
-    encode . CompileOutput $ #status @= status <: #result @= Nothing <: #description @= Just desc <: nil
+    encode . CompileResult $ #status @= status <: #output @= Nothing <: #description @= Just desc <: nil
   where
     errorDesc DecodeError = (1, "failed to decode")
     errorDesc (ParseError e) = (2, show e)
@@ -33,21 +33,21 @@ data CompileErrors =
     DecodeError
   | ParseError P.ParseError
   | CallGraphError CallGraphError
-compileInternal :: ByteString -> Either CompileErrors CompileResult
+compileInternal :: ByteString -> Either CompileErrors CompileOutput
 compileInternal s = do
   CompileInput input <- maybe (throwError DecodeError) Right $ decode s
   (name, term) <- Bi.first ParseError $ P.runParser funcDefinition () "" (input ^. #source)
   ((_, graphWithOutput), ty) <- Bi.first CallGraphError $ runCallGraph vertices items contextMinimal context (callGraph term)
   let out = G.Vertex 0
       graph = convertFromVisualizedGraph . G.visualize out $ graphWithOutput out
-  pure . CompileResult $ #name @= name <: #type @= ty <: #timer @= 10 <: #graph @= graph <: nil
+  pure . CompileOutput $ #name @= name <: #type @= ty <: #timer @= 10 <: #graph @= graph <: nil
   where
     vertices = Map.fromList [("slash", G.Vertex 1), ("fire", G.Vertex 2)]
     items = Map.fromList [(Minimal.Unit, 3)]
     contextMinimal = V.fromList [("slash", Minimal.Arrow Minimal.Unit Minimal.Unit), ("fire", Minimal.Arrow Minimal.Unit (Minimal.Arrow Minimal.Unit Minimal.Unit))]
     context = V.fromList [("slash", VariableBind $ Arrow Unit Unit), ("fire", VariableBind $ Arrow Unit (Arrow Unit Unit))]
 
-newtype CompileResult = CompileResult (Record '["name" >: String, "type" >: Type, "timer" >: Int, "graph" >: Graph]) deriving (Show, Eq, ToJSON, FromJSON)
+newtype CompileOutput = CompileOutput (Record '["name" >: String, "type" >: Type, "timer" >: Int, "graph" >: Graph]) deriving (Show, Eq, ToJSON, FromJSON)
 newtype Graph = Graph (Record '["output" >: Vertex]) deriving (Show, Eq, FromJSON, ToJSON)
 newtype Vertex = Vertex  (Record '["item" >: Int, "children" >: [Edge]] ) deriving (Show, Eq, FromJSON, ToJSON)
 newtype Edge = Edge (Record '["item" >: Int, "target" >: Vertex ]) deriving (Show, Eq, FromJSON, ToJSON)
