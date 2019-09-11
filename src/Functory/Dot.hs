@@ -23,7 +23,7 @@ edgesToDot es = (\intMap -> Set.toList $ Set.map (\(Edge e) -> concat [show $ in
 
 
 writeGraph :: (Ord b, Show a, Show b) => String -> Graph a b -> IO ()
-writeGraph file g@(Graph graph) = writeGraphInternal file $ runReader (graphToDot file g) . Map.fromList $ zip (Set.toList $ graph ^. #vertices) [1..]
+writeGraph file g@(Graph graph) = writeGraphInternal file (runReader (graphToDot file g) (Map.fromList (zip (Set.toList $ graph ^. #vertices) [1..]))) `catch` (\(e :: IOException) -> traceShow e $ pure ())
 
 writeGraphInternal :: String -> String -> IO ()
 writeGraphInternal file content = writeFile (concat ["images/", file, ".dot"]) $ concat ["digraph {", content, "}"]

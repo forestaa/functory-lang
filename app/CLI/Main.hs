@@ -10,7 +10,7 @@ main = do
   C.hPutStrLn stderr "Functory: waiting for input..."
   content <- C.getContents
   forM_ (C.lines content) $ \input -> do
-    let result = compile input
+    result <- compile input
     C.hPutStrLn stdout result
     hFlush stdout
     C.hPutStrLn stderr $ mappend "Functory: write output: " result
