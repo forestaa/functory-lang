@@ -7,7 +7,7 @@ import SString
 
 -- Variable apeears here is a resource from external,
 -- not equivalent to variables appearing in the programming language context
-data Type = Unit | Arrow Type Type deriving (Eq, Ord, Show)
+data Type = Unit | Constant SString | Arrow Type Type deriving (Eq, Ord, Show)
 data Term = Variable SString | Application Term Term -- normalized term
   deriving (Show, Eq)
 

@@ -52,6 +52,7 @@ lookupEdgeItem x = do
     Nothing -> throwEff #callGraphMinimal $ UndefinedEdge ty
   where
     codomain Unit = Unit
+    codomain c@(Constant _) = c
     codomain (Arrow _ ty) = codomain ty
 
 callGraph :: (

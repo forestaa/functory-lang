@@ -10,8 +10,10 @@ import qualified RIO.Map.Partial as Map
 
 
 newtype Vertex b = Vertex b deriving (Show, Eq, Ord) via b
-newtype Edge a b = Edge (Record '["item" >: a, "source" >: Vertex b, "target" >: Vertex b]) deriving (Show, Eq, Ord) via (Record '["item" >: a, "source" >: Vertex b, "target" >: Vertex b])
+newtype Edge a b = Edge (Record '["item" >: a, "source" >: Vertex b, "target" >: Vertex b]) deriving (Eq, Ord) via (Record '["item" >: a, "source" >: Vertex b, "target" >: Vertex b])
 newtype Graph a b = Graph (Record '["vertices" >: Set.Set (Vertex b), "edges" >: Set.Set (Edge a b)]) deriving (Show, Eq) via (Record '["vertices" >: Set.Set (Vertex b), "edges" >: Set.Set (Edge a b)])
+instance Show a => Show (Edge a b) where
+  show (Edge r) = show $ r ^. #item
 
 newEdge :: a -> Vertex b -> Vertex b -> Edge a b
 newEdge a src tgt = Edge $ #item @= a <: #source @= src <: #target @= tgt <: nil

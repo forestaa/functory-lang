@@ -70,18 +70,20 @@ callGraph :: (
   , Ord a
   )
   => Lambda.NamedTerm
-  -> Eff xs (Minimal.GraphWithOutput a a, Lambda.Type)
+  -> Eff xs (Minimal.GraphWithOutput a a)
 callGraph term = do
-  ty <- Lambda.typing =<< NL.unName term
-  items <- askEff #typeItem
-  let (term', ctx) = Lambda.populateArgument term
-  localEff #context ((V.++) (fmap g ctx)) . localEff #contextMinimal ((V.++) (fmap f ctx)) .
-    localEff #vertices (\m -> V.foldr (\(x, Lambda.Unit) m -> maybe m (\b -> Map.insert x (Vertex b) m) $ items Map.!? Minimal.Unit) m ctx) $ do
-      term'' <- NL.unName term'
-      ty' <- Lambda.typing term''
-      if Lambda.isBaseType ty'
-        then fmap (, ty) . (Minimal.callGraph <=< (fmap Lambda.toMinimal . NL.restoreName)) $ Lambda.eval term''
-        else throwEff #callGraphSimple $ TypeIsNotBase term' ty'
+  term' <- NL.unName term
+  ty <- Lambda.typing term'
+  if Lambda.isBaseType ty
+    then (Minimal.callGraph <=< (fmap Lambda.toMinimal . NL.restoreName)) $ Lambda.eval term'
+    else throwEff #callGraphSimple $ TypeIsNotBase term ty
   where
     f (x, Lambda.Unit) = (x, Minimal.Unit)
     g (x, ty) = (x, Lambda.VariableBind ty)
+
+typingNamedTerm :: Lambda.VariableContext -> Lambda.NamedTerm -> Either CallGraphError Lambda.Type
+typingNamedTerm ctx = join . leaveEff . flip (runReaderEff @"context") ctx . runTyping . runUnName . (Lambda.typing <=< NL.unName)
+  where
+    runUnName = fmap (Bi.first UnNameError) . runEitherEff @"unName"
+    runTyping = fmap (Bi.first TypingSimpleError) . runEitherEff @"typingSimple"
+

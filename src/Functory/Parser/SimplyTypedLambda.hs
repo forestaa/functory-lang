@@ -54,8 +54,20 @@ typeExp = buildExpressionParser typeExprTable typeTerm
 unitType :: Stream s m Char => ParsecT s u m Type
 unitType = Unit <$ symbol "()"
 
+constantType :: Stream s m Char => ParsecT s u m Type
+constantType = do
+  x <- P.upper
+  xs <- many (identLetter functoryLang)
+  P.spaces
+  pure . Constant $ pack (x:xs)
+
 baseType :: Stream s m Char => ParsecT s u m Type
-baseType = unitType
+baseType = P.choice [
+    unitType
+  , constantType
+  ]
+
+
 
 arrowType :: Stream s m Char => ParsecT s u m (Type -> Type -> Type)
 arrowType =  reservedOp "->" $> Arrow
@@ -95,12 +107,13 @@ letTerm = do
 definitionArgumentList :: Stream s m Char => ParsecT s u m [(SString, Type)]
 definitionArgumentList = identifierWithType `P.sepBy` symbol ","
 
-funcDefinition :: Stream s m Char => ParsecT s u m (String, NamedTerm)
+funcDefinition :: Stream s m Char => ParsecT s u m (String, NamedTerm, NamedTerm, [(SString, Type)])
 funcDefinition = do
   reserved "fun"
   f <- identifier
   args <- P.between (symbol "(") (symbol ")") definitionArgumentList
   reserved "="
   body <- termExp
-  let t = foldr (\(x, ty) term -> Abstraction (#name @= x <: #type @= ty <: #body @= term <: nil)) body args
-  pure (f, t)
+  let rowTerm = foldr (\(x, ty) term -> Abstraction (#name @= x <: #type @= ty <: #body @= term <: nil)) body args
+      populatedTerm = foldl' (\term (x, _) -> Application (#function @= term <: #argument @= Variable x <: nil)) rowTerm args
+  pure (f, rowTerm, populatedTerm, args)

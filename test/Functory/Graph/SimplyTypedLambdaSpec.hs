@@ -25,7 +25,7 @@ callGraphSpec = describe "callGraph test" $ do
         ctxMinimal = V.fromList [("x", Minimal.Unit)]
     case runCallGraph vertices items ctxMinimal ctx (callGraph term) of
       Left e -> expectationFailure (show e)
-      Right ((_, graph), _) -> graph out `shouldBe` newGraph [vertexx, out] [newEdge 0 vertexx out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, out] [newEdge 0 vertexx out]
 
   it "f x" $ do
     let x = Variable "x"
@@ -40,7 +40,7 @@ callGraphSpec = describe "callGraph test" $ do
         ctxMinimal = V.fromList [("x", Minimal.Unit), ("f", Minimal.Arrow Minimal.Unit Minimal.Unit)]
     case runCallGraph vertices items ctxMinimal ctx (callGraph term) of
       Left e -> expectationFailure (show e)
-      Right ((_, graph), _) -> graph out `shouldBe` newGraph [vertexx, vertexf, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexf out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexf, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexf out]
 
   it "g (f x)" $ do
     let x = Variable "x"
@@ -57,7 +57,7 @@ callGraphSpec = describe "callGraph test" $ do
         ctxMinimal = V.fromList [("x", Minimal.Unit), ("f", Minimal.Arrow Minimal.Unit Minimal.Unit), ("g", Minimal.Arrow Minimal.Unit Minimal.Unit)]
     case runCallGraph vertices items ctxMinimal ctx (callGraph term) of
       Left e -> expectationFailure (show e)
-      Right ((_, graph), _) -> graph out `shouldBe` newGraph [vertexx, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
 
   it "g (f x y)" $ do
     let x = Variable "x"
@@ -76,7 +76,7 @@ callGraphSpec = describe "callGraph test" $ do
         ctxMinimal = V.fromList [("x", Minimal.Unit), ("y", Minimal.Unit), ("f", Minimal.Arrow Minimal.Unit (Minimal.Arrow Minimal.Unit Minimal.Unit)), ("g", Minimal.Arrow Minimal.Unit Minimal.Unit)]
     case runCallGraph vertices items ctxMinimal ctx (callGraph term) of
       Left e -> expectationFailure (show e)
-      Right ((_, graph), _) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexy vertexf, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexy vertexf, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
 
   it "g (f x) y" $ do
     let x = Variable "x"
@@ -95,7 +95,7 @@ callGraphSpec = describe "callGraph test" $ do
         ctxMinimal = V.fromList [("x", Minimal.Unit), ("y", Minimal.Unit), ("f", Minimal.Arrow Minimal.Unit Minimal.Unit), ("g", Minimal.Arrow Minimal.Unit (Minimal.Arrow Minimal.Unit Minimal.Unit))]
     case runCallGraph vertices items ctxMinimal ctx (callGraph term) of
       Left e -> expectationFailure (show e)
-      Right ((_, graph), _) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexy vertexg, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexy vertexg, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
 
   it "(λx.λy. g x y) (f x) y -> g (f x) y" $ do
     let x = Variable "x"
@@ -114,7 +114,7 @@ callGraphSpec = describe "callGraph test" $ do
         ctxMinimal = V.fromList [("x", Minimal.Unit), ("y", Minimal.Unit), ("f", Minimal.Arrow Minimal.Unit Minimal.Unit), ("g", Minimal.Arrow Minimal.Unit (Minimal.Arrow Minimal.Unit Minimal.Unit))]
     case runCallGraph vertices items ctxMinimal ctx (callGraph term) of
       Left e -> expectationFailure (show e)
-      Right ((_, graph), _) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexy vertexg, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
+      Right (_, graph) -> graph out `shouldBe` newGraph [vertexx, vertexy, vertexf, vertexg, out] [newEdge 0 vertexx vertexf, newEdge 0 vertexy vertexg, newEdge 0 vertexf vertexg, newEdge 0 vertexg out]
 
   it "λx.x" $ do
     let term = Abstraction $ #name @= "x" <: #type @= Unit <: #body @= Variable "x" <: nil
@@ -124,5 +124,5 @@ callGraphSpec = describe "callGraph test" $ do
         items = Map.fromList [(Minimal.Unit, 0)]
         ctxMinimal = V.fromList []
     case runCallGraph vertices items ctxMinimal ctx (callGraph term) of
-      Left e -> expectationFailure (show e)
-      Right ((_, graph), _) -> graph out `shouldBe` newGraph [out] [newEdge 0 out out]
+      Left (CallGraphSimpleError (TypeIsNotBase _ _)) -> pure ()
+      _ -> expectationFailure "should raise TypeIsNotBase Error"

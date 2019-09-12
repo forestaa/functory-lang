@@ -19,11 +19,11 @@ verticesToDot :: (Ord b, Show b) => Set.Set (Vertex b) -> Reader (Map.Map (Verte
 verticesToDot vs = (\intMap -> Set.toList $ Set.map (\v -> concat [show (intMap Map.! v), " [label = ", show $ show v, "];"]) vs) <$> ask
 
 edgesToDot :: (Ord b, Show a, Show b) => Set.Set (Edge a b) -> Reader (Map.Map (Vertex b) Int) [String]
-edgesToDot es = (\intMap -> Set.toList $ Set.map (\(Edge e) -> concat [show $ intMap Map.! (e ^. #source), " -> ", show $ intMap Map.! (e ^. #target), " [label = ", show $ show e,"];"]) es) <$> ask
+edgesToDot es = (\intMap -> Set.toList $ Set.map (\edge@(Edge e) -> concat [show $ intMap Map.! (e ^. #source), " -> ", show $ intMap Map.! (e ^. #target), " [label = ", show edge,"];"]) es) <$> ask
 
 
-writeGraph :: (Ord b, Show a, Show b) => String -> Graph a b -> IO ()
-writeGraph file g@(Graph graph) = writeGraphInternal file (runReader (graphToDot file g) (Map.fromList (zip (Set.toList $ graph ^. #vertices) [1..]))) `catch` (\(e :: IOException) -> traceShow e $ pure ())
+writeGraph :: (Ord b, Show a, Show b) => String -> String -> Graph a b -> IO ()
+writeGraph file graphName g@(Graph graph) = writeGraphInternal file (runReader (graphToDot graphName g) (Map.fromList (zip (Set.toList $ graph ^. #vertices) [1..]))) `catch` (\(e :: IOException) -> traceShow e $ pure ())
 
 writeGraphInternal :: String -> String -> IO ()
 writeGraphInternal file content = writeFile (concat ["images/", file, ".dot"]) $ concat ["digraph {", content, "}"]

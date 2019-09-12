@@ -13,6 +13,7 @@ import SString
 
 data Type =
     Unit
+  | Constant SString
   | Arrow Type Type
   deriving (Eq, Generic)
 data Term b =
@@ -24,6 +25,7 @@ type NamedTerm = Term 'True
 type UnNamedTerm = Term 'False
 instance Show Type where
   show Unit = "()"
+  show (Constant s) = show s
   show (Arrow s t) = concat ["(", show s, " -> ", show t, ")"]
 instance Show (Named b) => Show (Term b) where
   show (Variable x) = show x
@@ -32,7 +34,7 @@ instance Show (Named b) => Show (Term b) where
 instance ToJSON Type where
   toJSON = String . utf8BuilderToText . displayShow
 instance FromJSON Type where
-  parseJSON = withText "Type" $ \s -> pure Unit
+  parseJSON = withText "Type" $ \_ -> pure Unit
 
 data TypedBinding = VariableBind Type deriving (Show, Eq)
 type VariableContext = Context TypedBinding
@@ -115,6 +117,7 @@ instance Show TypingError where
 
 isBaseType :: Type -> Bool
 isBaseType Unit = True
+isBaseType (Constant _) = True
 isBaseType _ = False
 
 typing :: (Lookup xs "context" (ReaderEff VariableContext), Lookup xs "typingSimple" (EitherEff TypingError)) => UnNamedTerm -> Eff xs Type
@@ -150,10 +153,16 @@ typingNamedTerm ctx = join . leaveEff . flip (runReaderEff @"context") ctx . run
     runUnName = fmap (Bi.first (NameLessError . UnNameError)) . runEitherEff @"unName"
     runTyping = fmap (Bi.first TypingError) . runEitherEff @"typingSimple"
 
+-- typingNamedTerm' :: VariableContext -> NamedTerm ->
 
 toMinimal :: NamedTerm -> Minimal.Term
 toMinimal (Variable x) = Minimal.Variable x
 toMinimal (Application r) = Minimal.Application (toMinimal $ r ^. #function) (toMinimal $ r ^. #argument)
+
+toMinimalType :: Type -> Minimal.Type
+toMinimalType Unit = Minimal.Unit
+toMinimalType (Constant s) = Minimal.Constant s
+toMinimalType (Arrow dom cod) = toMinimalType dom `Minimal.Arrow` toMinimalType cod
 
 populateArgument :: NamedTerm -> (NamedTerm, Vector (SString, Type))
 populateArgument = leaveEff . flip (evalStateEff @"unique") 0 . populateArgumentInternal
