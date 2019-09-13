@@ -14,7 +14,9 @@ import Functory.Parser.SimplyTypedLambda
 import qualified Functory.Syntax.Minimal as Minimal
 import Functory.Syntax.SimplyTypedLambda hiding (typingNamedTerm)
 import RIO hiding (ByteString, DecodeError)
+import qualified RIO.List.Partial as List
 import qualified RIO.Map as Map
+import qualified RIO.Map.Partial as Map
 import qualified RIO.Vector as V
 import System.Process
 import qualified Text.Parsec as P
@@ -59,7 +61,7 @@ compileInternal s = do
       graph = graphWithOutput out
       functoryID = input ^. #functory_id
   lift $ writeDotGraph functoryID name graph
-  let visualizedGraph = convertFromVisualizedGraph . G.visualize out $ graphWithOutput out
+  let visualizedGraph = convertFromVisualizedGraph materialMap functionMap . G.visualize out $ graphWithOutput out
   pure . CompileOutput $ #name @= name <: #type @= ty <: #timer @= 10 <: #graph @= visualizedGraph <: nil
   where
     vertices = Map.fromList [
@@ -70,37 +72,40 @@ compileInternal s = do
         (Minimal.Unit, "()")
       , (Minimal.Constant "Wood", "Wood")
       , (Minimal.Constant "Water", "Water")
-      , (Minimal.Constant "HotWater", "HotWater")
       , (Minimal.Constant "Energy", "Energy")
+      , (Minimal.Constant "HotWater", "HotWater")
       ]
     context = V.fromList [
         ("slash", VariableBind $ Arrow (Constant "Wood") (Constant "Energy"))
       , ("fire", VariableBind $ Arrow (Constant "Energy") (Arrow (Constant "Water") (Constant "HotWater")))
       ]
     contextMinimal = fmap (second (\(VariableBind ty) -> toMinimalType ty)) context
-
--- newtype CompileOutput = CompileOutput (Record '["name" >: String, "type" >: Type, "timer" >: Int, "graph" >: Graph]) deriving (Show, Eq, ToJSON, FromJSON)
--- newtype Graph = Graph (Record '["output" >: Vertex]) deriving (Show, Eq, FromJSON, ToJSON)
--- newtype Vertex = Vertex  (Record '["item" >: Int, "children" >: [Edge]] ) deriving (Show, Eq, FromJSON, ToJSON)
--- newtype Edge = Edge (Record '["item" >: Int, "target" >: Vertex ]) deriving (Show, Eq, FromJSON, ToJSON)
-
--- convertFromVisualizedGraph :: G.VisualizedGraph Int Int -> Graph
--- convertFromVisualizedGraph g = Graph (#output @= convertFromVisualizedGraphInternal g <: nil)
--- convertFromVisualizedGraphInternal :: G.VisualizedGraph Int Int -> Vertex
--- convertFromVisualizedGraphInternal (G.VisualizedGraph g) = Vertex $ #item @= extract (g ^. #vertex) <: #children @= fmap ((\(item, v) -> Edge (#item @= item <: #target @= v <: nil)) . second convertFromVisualizedGraphInternal) (g ^. #children) <: nil
---   where
---     extract (G.Vertex a) = a
-
+    materialMap = Map.fromList [
+        ("Wood", 1)
+      , ("Water", 2)
+      , ("Energy", 3)
+      , ("HotWater", 4)
+      ]
+    functionMap = Map.fromList [
+        ("slash", 1)
+      , ("fire", 2)
+      , ("wood", 3)
+      , ("water", 4)
+      ]
 
 newtype CompileOutput = CompileOutput (Record '["name" >: String, "type" >: Type, "timer" >: Int, "graph" >: Graph]) deriving (Show, Eq, ToJSON, FromJSON)
 newtype Graph = Graph (Record '["output" >: Vertex]) deriving (Show, Eq, FromJSON, ToJSON)
-newtype Vertex = Vertex  (Record '["item" >: String, "children" >: [Edge]] ) deriving (Show, Eq, FromJSON, ToJSON)
-newtype Edge = Edge (Record '["item" >: String, "target" >: Vertex ]) deriving (Show, Eq, FromJSON, ToJSON)
+newtype Vertex = Vertex  (Record '["item" >: Int, "children" >: [Edge]] ) deriving (Show, Eq, FromJSON, ToJSON)
+newtype Edge = Edge (Record '["item" >: Int, "target" >: Vertex ]) deriving (Show, Eq, FromJSON, ToJSON)
 
-convertFromVisualizedGraph :: G.VisualizedGraph String String -> Graph
-convertFromVisualizedGraph g = Graph (#output @= convertFromVisualizedGraphInternal g <: nil)
-convertFromVisualizedGraphInternal :: G.VisualizedGraph String String -> Vertex
-convertFromVisualizedGraphInternal (G.VisualizedGraph g) = Vertex $ #item @= extract (g ^. #vertex) <: #children @= fmap ((\(item, v) -> Edge (#item @= item <: #target @= v <: nil)) . second convertFromVisualizedGraphInternal) (g ^. #children) <: nil
+convertFromVisualizedGraph :: (Map.Map String Int) -> (Map.Map String Int) -> G.VisualizedGraph String String -> Graph
+convertFromVisualizedGraph materialMap functionMap g = Graph (#output @= convertFromVisualizedGraphOutput materialMap functionMap g <: nil)
+convertFromVisualizedGraphOutput :: (Map.Map String Int) -> (Map.Map String Int) -> G.VisualizedGraph String String -> Vertex
+convertFromVisualizedGraphOutput materialMap functionMap (G.VisualizedGraph g) =
+  Vertex $ #item @= materialMap Map.! (fst (List.head (g ^. #children))) <: #children @= fmap (\(item, g) -> Edge (#item @= materialMap Map.! item <: #target @= convertFromVisualizedGraphInternal materialMap functionMap g <: nil)) (g ^. #children) <: nil
+convertFromVisualizedGraphInternal :: (Map.Map String Int) -> (Map.Map String Int) -> G.VisualizedGraph String String -> Vertex
+convertFromVisualizedGraphInternal materialMap functionMap (G.VisualizedGraph g) =
+    Vertex $ #item @= functionMap Map.! (extract (g ^. #vertex)) <: #children @= fmap ((\(item, v) -> Edge (#item @= materialMap Map.! item <: #target @= v <: nil)) . second (convertFromVisualizedGraphInternal materialMap functionMap)) (g ^. #children) <: nil
   where
     extract (G.Vertex a) = a
 
